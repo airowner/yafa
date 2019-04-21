@@ -1,7 +1,7 @@
-/* 
+/*
  * File:   invoke.cpp
  * Author: wuhao
- * 
+ *
  * Created on 2015年11月30日, 上午1:33
  */
 
@@ -15,13 +15,15 @@ namespace php {
 
         fci.size = sizeof (fci);
         fci.no_separation = 1;
-        fci.symbol_table = NULL;
         ZVAL_STRINGL(&fci.function_name, method.c_str(), method.length());
         fci.object = Z_OBJ(obj->val);
-        fci.function_table = NULL;
         fci.params = const_cast<zval*>(params.data());
         fci.param_count = params.size();
         fci.retval = &r.val;
+        #if PHP_VERSION_ID < 70100
+          fci.symbol_table = NULL;
+          fci.function_table = NULL;
+        #endif
 
     //    fcc.initialized = 1;
     //    fcc.function_handler = (zend_function*)zend_hash_find_ptr(&Z_OBJCE(obj._value)->function_table, Z_STR(fci.function_name));
@@ -44,7 +46,7 @@ namespace php {
         }
         return std::move(r);
     }
-    
+
     value call_method_1(value* obj, const std::string& method, const value& a1) {
         value r;
         if(obj == nullptr) {
@@ -54,7 +56,7 @@ namespace php {
         }
         return std::move(r);
     }
-    
+
     value call_method_2(value* obj, const std::string& method, const value& a1, const value& a2) {
         value r;
         if(obj == nullptr) {
@@ -62,10 +64,10 @@ namespace php {
         }else{
             zend_call_method(&obj->val, Z_OBJCE(obj->val), nullptr, method.c_str(), method.length(), &r.val, 2, const_cast<zval*>(&a1.val), const_cast<zval*>(&a2.val));
         }
-       
+
         return std::move(r);
     }
-    
+
 //    value create_object(zend_class_entry* ce, const parameter& params) {
 //        value obj;
 //        object_init_ex(&obj.val, ce);

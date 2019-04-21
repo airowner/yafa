@@ -16,7 +16,7 @@ namespace php {
     void class_base::__set(const std::string& name, const value& value) {
         zend_throw_error(nullptr, "undefined property \"%s\"", name.c_str());
     }
-    
+
     class_wrap::class_wrap(const std::string& name):class_name(name) {
     }
     // 方法调用
@@ -31,12 +31,12 @@ namespace php {
         parameter param(z_argv, z_size);
         p_store->self->__construct(param);
     }
-    
+
     void class_wrap::__destruct(INTERNAL_FUNCTION_PARAMETERS) {
         _store* p_store = get_store(getThis());
         p_store->self->__destruct();
     }
-    
+
     void class_wrap::__call(INTERNAL_FUNCTION_PARAMETERS) {
         zend_string* z_name;
         zval*        z_argv;
@@ -56,7 +56,7 @@ namespace php {
             RETURN_ZVAL(&r.val, 1, 0);
         }
     }
-    
+
     void class_wrap::__get(INTERNAL_FUNCTION_PARAMETERS) {
         zend_string* z_name;
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &z_name) == FAILURE) {
@@ -100,7 +100,7 @@ namespace php {
             zend_update_static_property(Z_OBJCE_P(getThis()), z_name->val, z_name->len, z_val);
         }
     }
-    
+
     void class_wrap::__isset(INTERNAL_FUNCTION_PARAMETERS) {
         zend_string* z_name;
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &z_name) == FAILURE) {
@@ -114,7 +114,7 @@ namespace php {
         }
         RETURN_BOOL(true);
     }
-    
+
     void class_wrap::__callStatic(INTERNAL_FUNCTION_PARAMETERS) {
         zend_string* z_name;
         zval*        z_argv;
@@ -122,10 +122,14 @@ namespace php {
             zend_throw_error(NULL, "failed to __callStatic");
             return;
         }
-        class_wrap*  p_wrap = *((class_wrap**)(execute_data->called_scope->info.user.doc_comment->val + 1));
+        #if PHP_VERSION_ID < 70100
+            class_wrap*  p_wrap = *((class_wrap**)(execute_data->called_scope->info.user.doc_comment->val + 1));
+        #else
+            class_wrap*  p_wrap = *((class_wrap**)(zend_get_called_scope(execute_data)->info.user.doc_comment->val + 1));
+        #endif
         parameter    param(z_argv);
         std::string  name(ZSTR_VAL(z_name), ZSTR_LEN(z_name));
-        
+
         auto p_method = p_wrap->m_static_method.find(name);
         if(p_method == p_wrap->m_static_method.end()) {
             zend_throw_error(nullptr, "undefined method \"%s\"", name.c_str());
@@ -134,14 +138,14 @@ namespace php {
             value r = p_method->second(param);
             RETURN_ZVAL(&r.val, 1, 0);
         }
-        
+
     }
     // 添加属性
     class_wrap& class_wrap::property(const std::string& name, int flags) {
         m_property[name] = flags;
         return *this;
     }
-   
+
     void class_wrap::add_object_method(const std::string& name, object_method_t method) {
         m_object_method[name] = method;
     }
@@ -157,21 +161,21 @@ namespace php {
 
     ZEND_BEGIN_ARG_INFO(destructor_argv, 0)
     ZEND_END_ARG_INFO()
-    
+
     ZEND_BEGIN_ARG_INFO_EX(call_argv, 0, 0, 2)
         ZEND_ARG_TYPE_INFO(0, name, IS_STRING, 0)
         ZEND_ARG_ARRAY_INFO(0, argv, 0)
     ZEND_END_ARG_INFO()
-    
+
     ZEND_BEGIN_ARG_INFO_EX(get_argv, 0, 0, 1)
         ZEND_ARG_TYPE_INFO(0, name, IS_STRING, 0)
     ZEND_END_ARG_INFO()
-        
+
     ZEND_BEGIN_ARG_INFO_EX(set_argv, 0, 0 , 2)
         ZEND_ARG_TYPE_INFO(0, name, IS_STRING, 0)
         ZEND_ARG_INFO(0, value)
     ZEND_END_ARG_INFO()
-    
+
     // TODO 继续支持其他魔术方法？
     static zend_function_entry method_entry[] = {
         { "__construct" , class_wrap::__construct , constructor_argv, 1, ZEND_ACC_PUBLIC},
@@ -192,7 +196,7 @@ namespace php {
             zend_declare_property_null(p_ce, i->first.c_str(), i->first.length(), i->second);
         }
         p_wrap->set_class_entry(p_ce);
-        
+
         // 利用注释保存当前对象指针
         p_ce->info.user.doc_comment = zend_string_init("\0", 2 + sizeof(class_wrap*), 1);
         memcpy(p_ce->info.user.doc_comment->val + 1, &p_wrap, sizeof(class_wrap*));
@@ -222,4 +226,3 @@ namespace php {
         return &p_store->obj;
     }
 }
-
